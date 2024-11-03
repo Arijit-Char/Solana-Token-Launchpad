@@ -9,17 +9,15 @@ import {
   createInitializeMintInstruction,
   getMintLen,
   createInitializeMetadataPointerInstruction,
-  getMint,
-  getMetadataPointerState,
-  getTokenMetadata,
   TYPE_SIZE,
   LENGTH_SIZE,
-  getMinimumBalanceForRentExemptMint,
+  getAssociatedTokenAddressSync,
+  createAssociatedTokenAccountInstruction,
+  createMintToInstruction,
 } from "@solana/spl-token";
 import {
   createInitializeInstruction,
   createUpdateFieldInstruction,
-  createRemoveKeyInstruction,
   pack,
 } from "@solana/spl-token-metadata";
 export default function TokenLaunchpad() {
@@ -105,9 +103,42 @@ export default function TokenLaunchpad() {
     transaction.partialSign(mintKeypair);
 
     await wallet.sendTransaction(transaction, connection);
-    console.log("Working");
 
     console.log("Mint created: ", mintKeypair.publicKey.toBase58());
+    const associatedToken = getAssociatedTokenAddressSync(
+      mintKeypair.publicKey,
+      wallet.publicKey,
+      false,
+      TOKEN_2022_PROGRAM_ID
+    );
+
+    console.log(associatedToken.toBase58());
+
+    const transaction2 = new Transaction().add(
+      createAssociatedTokenAccountInstruction(
+        wallet.publicKey,
+        associatedToken,
+        wallet.publicKey,
+        mintKeypair.publicKey,
+        TOKEN_2022_PROGRAM_ID
+      )
+    );
+
+    await wallet.sendTransaction(transaction2, connection);
+
+    const transaction3 = new Transaction().add(
+      createMintToInstruction(
+        mintKeypair.publicKey,
+        associatedToken,
+        wallet.publicKey,
+        supply,
+        [],
+        TOKEN_2022_PROGRAM_ID
+      )
+    );
+
+    await wallet.sendTransaction(transaction3, connection);
+    console.log(`Minted ${supply} tokens to associated account`);
   }
 
   return (
