@@ -14,12 +14,14 @@ import {
   getAssociatedTokenAddressSync,
   createAssociatedTokenAccountInstruction,
   createMintToInstruction,
+  getTokenMetadata,
 } from "@solana/spl-token";
 import {
   createInitializeInstruction,
   createUpdateFieldInstruction,
   pack,
 } from "@solana/spl-token-metadata";
+import axios from "axios";
 export default function TokenLaunchpad() {
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
@@ -27,6 +29,19 @@ export default function TokenLaunchpad() {
   const [supply, setSupply] = useState("");
   const wallet = useWallet();
   const { connection } = useConnection();
+
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "Upload");
+    const response = await axios.post(
+      "https://api.cloudinary.com/v1_1/dpt2vsygv/image/upload",
+      formData
+    );
+    setImage(response.data.secure_url);
+  };
   async function createMint() {
     if (!wallet.publicKey) {
       alert("Connect your wallet first");
@@ -139,39 +154,47 @@ export default function TokenLaunchpad() {
 
     await wallet.sendTransaction(transaction3, connection);
     console.log(`Minted ${supply} tokens to associated account`);
+
+    const metadata = await getTokenMetadata(
+      connection,
+      mintKeypair.publicKey// Mint Account address
+    );
+    console.log("\nMetadata:", JSON.stringify(metadata, null, 2));
   }
 
   return (
     <div className="TokenLaunchpad">
       <h1>Solana Token Launchpad</h1>
-      <input
-        className="inputText"
-        type="text"
-        placeholder="Name"
-        onChange={(e) => setName(e.target.value)}
-      ></input>{" "}
-      <br />
-      <input
-        className="inputText"
-        type="text"
-        placeholder="Symbol"
-        onChange={(e) => setSymbol(e.target.value)}
-      ></input>{" "}
-      <br />
-      <input
-        className="inputText"
-        type="text"
-        placeholder="Image URL"
-        onChange={(e) => setImage(e.target.value)}
-      ></input>{" "}
-      <br />
-      <input
-        className="inputText"
-        type="text"
-        placeholder="Initial Supply"
-        onChange={(e) => setSupply(e.target.value)}
-      ></input>{" "}
-      <br />
+      <div className="firstHalf">
+        {" "}
+        <input
+          className="inputText"
+          type="text"
+          placeholder="Name"
+          onChange={(e) => setName(e.target.value)}
+        ></input>{" "}
+        <input
+          className="inputText"
+          type="text"
+          placeholder="Symbol"
+          onChange={(e) => setSymbol(e.target.value)}
+        ></input>{" "}
+      </div>
+
+      <div className="secondHalf">
+        <input
+          className="inputText"
+          type="text"
+          placeholder="Initial Supply"
+          onChange={(e) => setSupply(e.target.value)}
+        ></input>{" "}
+        <input
+          className="inputFile"
+          type="file"
+          onChange={handleUpload}
+        ></input>{" "}
+      </div>
+
       <button className="btn" onClick={createMint}>
         Create a token
       </button>
